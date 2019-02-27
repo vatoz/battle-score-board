@@ -3,12 +3,23 @@
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
+
 #include <Adafruit_NeoPixel.h>
 
 #ifndef STASSID
-#define STASSID "Vatoz"
-#define STAPSK  "borovice"
+  #define STASSID "Vatoz"
+  #define STAPSK  "borovice"
 #endif
+
+#define STRIP_LL 0
+#define STRIP_LH 1
+#define STRIP_RL 2
+#define STRIP_RH 3
+#define STRIP_GUI 4
+#define STRIP_GUI2 5
+
+
+#define ColoRand (random(15)<<16)+(random(15)<<8)+random(15)
 
 const char *ssid = STASSID;
 const char *password = STAPSK;
@@ -19,32 +30,128 @@ unsigned char val_right=0;
 unsigned char val_foul_left=0;
 unsigned char val_foul_right=0;
 
-unsigned int barva_left=900;//random
-unsigned int barva_right=1800;
+uint32_t barva_left=(0<<16) + (0<<8)+30;//random
+uint32_t barva_right=(20<<16) + (20<<8)+20;
 
 
 ESP8266WebServer server(80);
-Adafruit_NeoPixel rgbWS_ll = Adafruit_NeoPixel(7*8, 1, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel rgbWS_ll = Adafruit_NeoPixel(7*8, 0, NEO_GRB + NEO_KHZ800);
 Adafruit_NeoPixel rgbWS_lh = Adafruit_NeoPixel(7*8, 2, NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel rgbWS_rl = Adafruit_NeoPixel(7*8, 3, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel rgbWS_rl = Adafruit_NeoPixel(7*8, 5, NEO_GRB + NEO_KHZ800);
 Adafruit_NeoPixel rgbWS_rh = Adafruit_NeoPixel(7*8, 4, NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel rgbWS_gui = Adafruit_NeoPixel(7*8, 4, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel rgbWS_gui = Adafruit_NeoPixel(6*8, 14, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel rgbWS_gui2 = Adafruit_NeoPixel(2, 12, NEO_GRB + NEO_KHZ800);
 
 
 const int led = 13;
 
-void NastavDigitu (Adafruit_NeoPixel  port, int  cislo, int  barva, boolean zero=false){
+void Np_Set(int i,int led, int color){
+  switch (i){
+    case STRIP_LL:
+       rgbWS_ll.setPixelColor(led,color);break;
+    case STRIP_LH:
+      rgbWS_lh.setPixelColor(led,color);break;
+    case STRIP_RH:
+      rgbWS_rh.setPixelColor(led,color);break;
+    case STRIP_RL:
+      rgbWS_rl.setPixelColor(led,color);break;
+   case STRIP_GUI:
+      rgbWS_gui.setPixelColor(led,color);break;
+   
+   case STRIP_GUI2:
+      rgbWS_gui2.setPixelColor(led,color);break;
+    }
+}
+void Np_Show(int i){
+  yield();delay(0);ESP.wdtFeed();
+  switch (i){
+    case STRIP_LL:
+       rgbWS_ll.show();break;
+    case STRIP_LH:
+      rgbWS_lh.show();break;
+    case STRIP_RH:
+      rgbWS_rh.show();break;
+    case STRIP_RL:
+      rgbWS_rl.show();break;
+   case STRIP_GUI:
+      rgbWS_gui.show();break;
+   
+   case STRIP_GUI2:
+      rgbWS_gui2.show();break;
+    }
+}
 
-  //todo
+
+
+void NastavDigitu (int  port, int  cislo, int  barva, boolean zero=false){
+  int mask=0;
+  //Serial.print("Sp");
+  //Serial.print(cislo);
+  switch (cislo){
+    case 0:
+      if (zero) mask=1+2+4+64+32+16;
+      break;
+    case 1:
+      mask=4+64;      break;
+    case 2:
+      mask=2+4+8+16+32;      break;
+    case 3:
+      mask= 2+8+32+4+64;      break;
+    case 4:
+      mask=1+8+4+64; break;
+    case 5:
+      mask = 2+1+8+64+32; break;
+    case 6:
+      mask=1+2+8+16+32+64; break;
+    case 7:
+      mask=2+4+64; break;
+    case 8:
+      mask =1+2+4+8+16+32+64;  break;
+    case 9:
+      mask=1+2+4+8+32+64; break;
+    }
+    
+  for(int i=0;i<7;i++){
+    
+      for (int j=0;j<8;j++){
+        Np_Set(port,(i*8)+j ,(mask & 1)?    barva:0);
+        }
+    mask=mask>>1;
+    yield();
+      }
+    
+  // aktualizace barev na všech modulech
+  yield();
+  Np_Show(port);
+  
 
   }
-
+void fauly(){
+  int mask=0;
+  
+  if (val_foul_right==3)mask+=1;
+  if (val_foul_right>1)mask+=2; 
+  if(val_foul_right>0)mask+=4;
+  if (val_foul_left==3)mask+=8; 
+  if(val_foul_left>1)mask+=16;
+  if(val_foul_left>0)mask+=32;     
+for(int i=0;i<6;i++){  
+      for (int j=0;j<8;j++){
+        Np_Set(STRIP_GUI,(i*8)+j ,(mask & 1)?    20<<16:0);
+        }
+    mask=mask>>1;
+   
+      }
+   Np_Show(STRIP_GUI);
+  
+  }
 void Vykresli(){
-  NastavDigitu(rgbWS_lh,(val_left- (val_left % 10  ))/10,barva_left, false );
-  NastavDigitu(rgbWS_ll, (val_left % 10  ),barva_left, true );
-  NastavDigitu(rgbWS_rh,(val_right- (val_right % 10  ))/10,barva_right, false );
-  NastavDigitu(rgbWS_rl, (val_right % 10  ),barva_right, true );
-
+  NastavDigitu(STRIP_LH,(val_left- (val_left % 10  ))/10,barva_left, false );
+  NastavDigitu(STRIP_LL, (val_left % 10  ),barva_left, true );
+  NastavDigitu(STRIP_RH,(val_right- (val_right % 10  ))/10,barva_right, false );
+  NastavDigitu(STRIP_RL, (val_right % 10  ),barva_right, true );
+fauly();
+  
 
 }
 
@@ -58,16 +165,21 @@ void handleRoot() {
 
   String out =  "<html>  <head>  <meta http-equiv='content-type' content='text/html; charset=utf-8'>     <meta http-equiv='refresh' content='5'/><link rel='stylesheet' type='text/css' href='/milligram.css' />   <title>Tabule Improliga</title>      </head>";
   out+= "<table border=1>\n";
-  out += "<tr><td>Kdo:</td><td><h2>Domácí</h2></td><td><h2>Hosté</h2></td></tr>\n";
+  out += "<tr><td>Kdo:</td><td><h2>Vlevo</h2></td><td><h2>Vpravo</h2></td></tr>\n";
   out += "<tr><td>Body:</td><td>"+String(val_left)+"</td><td>"+String(val_right)+"</td></tr>\n";
-  out += "<tr><td>Uprav body+:</td><td>"+Tlacitko("/l_bod","Přidat levému")+"</td><td>"+Tlacitko("/p_bod","Přidat Pravému")+"</td></tr>\n";
-  out += "<tr><td>Uprav body-:</td><td>"+Tlacitko("/l_minbod","Ubrat levému")+"</td><td>"+Tlacitko("/p_minbod","Ubrat Pravému")+"</td></tr>\n";
+  out += "<tr><td>Uprav body+:</td><td>"+Tlacitko("/l_bod","Přidat bod  levému")+"</td><td>"+Tlacitko("/p_bod","Přidat bod Pravému")+"</td></tr>\n";
+  out += "<tr><td>Uprav body-:</td><td>"+Tlacitko("/l_minbod","Ubrat bod levému")+"</td><td>"+Tlacitko("/p_minbod","Ubrat bod Pravému")+"</td></tr>\n";
   out += "<tr><td>Fauly:</td><td>"+String(val_foul_left)+"</td><td>"+String(val_foul_right)+"</td></tr>\n";
-  out += "<tr><td>Uprav fauly+:</td><td>"+Tlacitko("/l_faul","Přidat levému")+"</td><td>"+Tlacitko("/p_faul","Přidat Pravému")+"</td></tr>\n";
+  out += "<tr><td>Uprav fauly+:</td><td>"+Tlacitko("/l_faul",(val_foul_left<3)?"Přidat levému":"Přidat vítězný bod pravému týmu")+"</td><td>"+Tlacitko("/p_faul",(val_foul_left<3)?"Přidat pravému":"Přidat vítězný bod levému týmu")+"</td></tr>\n";
   out += "<tr><td>Uprav fauly-:</td><td>"+Tlacitko("/l_minfaul","Ubrat levému")+"</td><td>"+Tlacitko("/p_minfaul","Ubrat Pravému")+"</td></tr>\n";
   //out += "<tr><td>Barva:</td><td>"+Tlacitko("/l_barva","Nastav barvu l")+"</td><td>"+Tlacitko("/p_barva","Nastav barvu p")+"</td></tr>\n";
+  //out += "<tr><td>Barva:</td><td>"+Tlacitko("/l_barva","Levý je zlatý")+"</td><td>"+Tlacitko("/p_barva","Nastav barvu p")+"</td></tr>\n";
+  
+  
   out += "</table>\n";
   out += Tlacitko("/prohodit","Prohodit") + " <br>\n";
+   out += Tlacitko("/kis","Dnes hraje KIŠ") + " <br>\n";
+  out += Tlacitko("/vip","Dnes hraje VIP") + " <br>\n";
 
    out +="</body></html>";
   server.send(200, "text/html", out);
@@ -93,10 +205,49 @@ void handleNotFound() {
   digitalWrite(led, 0);
 }
 
+
+void rozsvit (int port,int pocet){
+for(int i=0;i<pocet;i++){
+    Np_Set(port,i, ColoRand);    
+     }
+      Np_Show(port);
+   
+  }
+  void test_ada(){
+    rozsvit(STRIP_LL,7*8);
+      rozsvit(STRIP_LH,7*8);
+      rozsvit(STRIP_RL,7*8);
+      rozsvit(STRIP_RH,7*8);
+      rozsvit(STRIP_GUI,6*8);
+      rozsvit(STRIP_GUI2,2);
+        
+    }
+    int buffer;
+    void test_nr(){
+  
+   NastavDigitu(STRIP_LH, buffer,ColoRand, true );
+  NastavDigitu(STRIP_LL, random(10),ColoRand, true );
+  NastavDigitu(STRIP_RH, random(10),ColoRand, true );
+  NastavDigitu(STRIP_RL, random(10),ColoRand, true );
+  delay(1500);
+
+  buffer++;
+  if(buffer>9)buffer=0;
+  }
+      
 void setup(void) {
-  pinMode(led, OUTPUT);
-  digitalWrite(led, 0);
-  Serial.begin(115200);
+ Serial.begin(115200);
+ rgbWS_lh.begin();
+ rgbWS_ll.begin();
+ rgbWS_rh.begin();
+ rgbWS_rl.begin();
+ rgbWS_gui.begin();
+ rgbWS_gui2.begin();
+     ESP.wdtDisable();
+     Serial.println("Setup");
+  test_ada();
+
+  
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   Serial.println("");
@@ -104,6 +255,7 @@ void setup(void) {
   // Wait for connection
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
+    ESP.wdtFeed();
     Serial.print(".");
   }
 
@@ -126,10 +278,14 @@ void setup(void) {
   server.on("/p_minbod", []() { if(val_right>0) val_right--;  go_home();  });
 
 
-  server.on("/l_faul", []() { val_foul_left++; if(val_foul_left==3){val_foul_left=0;val_right++;}  go_home();  });
-  server.on("/p_faul", []() { val_foul_right++;  if(val_foul_right==3){val_foul_right=0;val_left++;} go_home();  });
+  server.on("/l_faul", []() { val_foul_left++; if(val_foul_left==4){val_foul_left=0;val_right++;}  go_home();  });
+  server.on("/p_faul", []() { val_foul_right++;  if(val_foul_right==4){val_foul_right=0;val_left++;} go_home();  });
   server.on("/l_minfaul", []() {if(val_foul_left>0) val_foul_left--;  go_home();  });
   server.on("/p_minfaul", []() { if(val_foul_right>0) val_foul_right--;  go_home();  });
+  server.on("/kis", []() { barva_left=(6<<16) + (21<<8)+24;  go_home();  });
+  server.on("/vip", []() { barva_left=(25<<16) + (20<<8)+00;  go_home();  });
+
+
   server.on("/milligram.css", milligramCss);
   server.on("/prohodit", []() {
     int pom=val_right;
@@ -140,9 +296,9 @@ void setup(void) {
     val_foul_right=val_foul_left;
     val_foul_left=pom;
 
-    pom=barva_right;
+    uint32_t hold=barva_right;
     barva_right=barva_left;
-    barva_left=pom;
+    barva_left=hold;
 
     go_home();
   });
@@ -150,19 +306,26 @@ void setup(void) {
   server.onNotFound(handleNotFound);
   server.begin();
   Serial.println("HTTP server started");
+
 }
-void redraw(){
-  //todo pošle data na display
-  }
+
 void go_home(){
    server.sendHeader("Location", "/",true); //Redirect to our html web page
    server.send(302, "text/plane","");
+   Vykresli();
 }
 
 
 void loop(void) {
+//Serial.println("!loop");  
+//test_ada();
+//test_nr();  
+//yield();
+
+
   server.handleClient();
   MDNS.update();
+  Vykresli();
 }
 
 String Tlacitko(String href,String popis){
