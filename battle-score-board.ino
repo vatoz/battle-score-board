@@ -170,7 +170,7 @@ void handleRoot() {
   out += "<tr><td>Uprav body+:</td><td>"+Tlacitko("/l_bod","Přidat bod  levému")+"</td><td>"+Tlacitko("/p_bod","Přidat bod Pravému")+"</td></tr>\n";
   out += "<tr><td>Uprav body-:</td><td>"+Tlacitko("/l_minbod","Ubrat bod levému")+"</td><td>"+Tlacitko("/p_minbod","Ubrat bod Pravému")+"</td></tr>\n";
   out += "<tr><td>Fauly:</td><td>"+String(val_foul_left)+"</td><td>"+String(val_foul_right)+"</td></tr>\n";
-  out += "<tr><td>Uprav fauly+:</td><td>"+Tlacitko("/l_faul",(val_foul_left<3)?"Přidat levému":"Přidat vítězný bod pravému týmu")+"</td><td>"+Tlacitko("/p_faul",(val_foul_left<3)?"Přidat pravému":"Přidat vítězný bod levému týmu")+"</td></tr>\n";
+  out += "<tr><td>Uprav fauly+:</td><td>"+Tlacitko("/l_faul",(val_foul_left<3)?"Přidat levému":"Přidat vítězný bod pravému týmu")+"</td><td>"+Tlacitko("/p_faul",(val_foul_right<3)?"Přidat pravému":"Přidat vítězný bod levému týmu")+"</td></tr>\n";
   out += "<tr><td>Uprav fauly-:</td><td>"+Tlacitko("/l_minfaul","Ubrat levému")+"</td><td>"+Tlacitko("/p_minfaul","Ubrat Pravému")+"</td></tr>\n";
   //out += "<tr><td>Barva:</td><td>"+Tlacitko("/l_barva","Nastav barvu l")+"</td><td>"+Tlacitko("/p_barva","Nastav barvu p")+"</td></tr>\n";
   //out += "<tr><td>Barva:</td><td>"+Tlacitko("/l_barva","Levý je zlatý")+"</td><td>"+Tlacitko("/p_barva","Nastav barvu p")+"</td></tr>\n";
